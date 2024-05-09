@@ -1,0 +1,18 @@
+# mesh peering between route-reflector nodes
+kind: BGPPeer
+apiVersion: projectcalico.org/v3
+metadata:
+  name: rr-mesh
+spec:
+  nodeSelector: has(route-reflector)
+  peerSelector: has(route-reflector)
+
+---
+# peering between route-reflector with non route-reflectors
+kind: BGPPeer
+apiVersion: projectcalico.org/v3
+metadata:
+  name: peer-to-rrs
+spec:
+  nodeSelector: !has(route-reflector)
+  peerSelector: has(route-reflector)

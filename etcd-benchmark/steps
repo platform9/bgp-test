@@ -1,0 +1,8 @@
+#run this from one of the master node.
+
+git clone https://github.com/etcd-io/etcd
+$ cd etcd/
+$ go build ./tools/benchmark/
+$ ~/etcd# #./benchmark --endpoints=<node_IP>:2379,<node_IP>:2379,<node_IP>:2379 --conns=100 --clients=1000 put --key-size=8 --sequential-keys --total=100000 --val-size=256 --cert /etc/pf9/kube.d/certs/etcd/client/request.crt --key /etc/pf9/kube.d/certs/etcd/client/request.key --cacert /etc/pf9/kube.d/certs/etcd/client/ca.crt
+
+~/etcd# #./benchmark --endpoints=172.20.0.89:2379,172.20.1.243:2379,172.20.2.34:2379,172.20.3.225:2379,172.20.4.8:2379 --conns=100 --clients=1000 put --key-size=8 --sequential-keys --total=100000 --val-size=256 --cert /etc/pf9/kube.d/certs/etcd/client/request.crt --key /etc/pf9/kube.d/certs/etcd/client/request.key --cacert /etc/pf9/kube.d/certs/etcd/client/ca.crt

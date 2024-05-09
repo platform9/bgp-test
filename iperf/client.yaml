@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf-client
+spec:
+  containers:
+    - name: iperf-client
+      image: busybox
+      command: ["sleep", "3600"]
+  restartPolicy: Never

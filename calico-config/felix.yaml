@@ -1,0 +1,13 @@
+apiVersion: projectcalico.org/v3
+kind: FelixConfiguration
+metadata:
+  creationTimestamp: "2024-03-22T08:54:19Z"
+  name: default
+  resourceVersion: "622"
+  uid: fa48972b-04b6-44ca-a0cd-9037ffb7a59a
+spec:
+  routeReflectorMode: true
+  bpfLogLevel: ""
+  floatingIPs: Disabled
+  logSeverityScreen: Info
+  reportingInterval: 0s

@@ -1,0 +1,36 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.10.50-192.168.10.70
+---
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: bird-vm
+  namespace: metallb-system
+spec:
+  myASN: 65501
+  peerASN: 65501
+  peerAddress: 172.20.5.145
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: local
+  namespace: metallb-system
+spec:
+  nodeSelectors:
+  - matchLabels:
+      kubernetes.io/hostname: 172.20.0.169
+  - matchLabels:
+      kubernetes.io/hostname: 172.20.4.185
+  - matchLabels:
+      kubernetes.io/hostname: 172.20.4.91
+  ipAddressPools:
+  - first-pool
+  aggregationLength: 32
+  localPref: 100

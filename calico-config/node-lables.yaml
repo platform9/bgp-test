@@ -1,0 +1,31 @@
+apiVersion: projectcalico.org/v3
+kind: Node
+metadata:
+  annotations:
+    projectcalico.org/kube-labels: '{"beta.kubernetes.io/arch":"amd64","beta.kubernetes.io/os":"linux","kubernetes.io/arch":"amd64","kubernetes.io/hostname":"10.149.106.43","kubernetes.io/os":"linux","node-role.kubernetes.io/master":"","route-reflector":"true"}'
+  creationTimestamp: "2024-04-09T15:58:22Z"
+  labels:
+    beta.kubernetes.io/arch: amd64
+    beta.kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+    kubernetes.io/hostname: 10.149.106.43
+    kubernetes.io/os: linux
+    node-role.kubernetes.io/master: ""
+    route-reflector: "true"    <--------------- ADD THIS LABEL
+  name: 10.149.106.43
+  resourceVersion: "412027"
+  uid: 100e51b5-7c06-4b54-9253-990ac1f8fbfb
+spec:
+  addresses:
+  - address: 10.149.106.43/23
+    type: CalicoNodeIP
+  - address: 10.149.106.43
+    type: InternalIP
+  bgp:
+    ipv4Address: 10.149.106.43/23
+    ipv4IPIPTunnelAddr: 10.20.109.0
+    routeReflectorClusterID: 224.0.0.1   <----------------- ADD THIS FIELD
+  orchRefs:
+  - nodeName: 10.149.106.43
+    orchestrator: k8s
+status: {}

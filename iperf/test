@@ -1,0 +1,5 @@
+server_pod_ip=$(kubectl get pod -l app=iperf-server -o jsonpath='{.items[0].status.podIP}')
+
+kubectl exec -it iperf-client -- iperf3 -c $server_pod_ip -t 60 -i 5
+
+This command will run iperf3 for 60 seconds, reporting results every 5 seconds. It will measure the network throughput between the client and server pods
