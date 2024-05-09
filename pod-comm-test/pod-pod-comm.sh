@@ -133,6 +133,7 @@ while [ $min_replicas -lt $max_replicas ]; do
       read -p "delete the deployment and service? y/n: " action
       if [ "$action" == "y" ]; then
         kubectl delete namespace pod-comm-test
+        echo "namespace pod-comm-test deleted."
       fi
       break
       ;;
