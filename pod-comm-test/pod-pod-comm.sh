@@ -59,14 +59,14 @@ test_pod_to_pod_comms() {
   node2_ip=$(kubectl get node $node2 -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
 
   echo "Testing pod-to-pod communication across worker nodes $node1 ($node1_ip) and $node2 ($node2_ip)"
-  kubectl exec -n test $pod1 -- curl -s http://$pod2_ip:80
+  kubectl exec -n test $pod1 -- curl -s http://$pod2_ip:80 >/dev/null 2>&1
   if [ $? -eq 0 ]; then
     echo "Pod-to-pod communication succeeded: $pod1 ($pod1_ip) -> $pod2 ($pod2_ip)"
   else
     echo "Pod-to-pod communication failed: $pod1 ($pod1_ip) -> $pod2 ($pod2_ip)"
   fi
 
-  kubectl exec -n test $pod2 -- curl -s http://$pod1_ip:80
+  kubectl exec -n test $pod2 -- curl -s http://$pod1_ip:80 >/dev/null 2>&1
   if [ $? -eq 0 ]; then
     echo "Pod-to-pod communication succeeded: $pod2 ($pod2_ip) -> $pod1 ($pod1_ip)"
   else
