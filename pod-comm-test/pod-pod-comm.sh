@@ -122,11 +122,13 @@ while [ $min_replicas -lt $max_replicas ]; do
       # Scale up
       min_replicas=$replicas
       replicas=$((min_replicas + (max_replicas - min_replicas) / 2))
+      sleep 2
       ;;
     d)
       # Scale down
       max_replicas=$replicas
       replicas=$((min_replicas + (max_replicas - min_replicas) / 2))
+      sleep 2
       ;;
     q)
       # Quit
