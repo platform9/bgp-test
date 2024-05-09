@@ -26,13 +26,29 @@ spec:
         - containerPort: 80
 EOF
 
+# Create Test Service
+kubectl apply -f - <<EOF
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-service
+  namespace: test
+spec:
+  selector:
+    app: test
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+EOF
+
 test_pod_to_pod_comms() {
   
-  # Get all pods belonging to the test-deployment
   deployment_pods=$(kubectl get pods -n test -l app=test -o jsonpath='{.items[*].metadata.name}')
   deployment_pod_array=($deployment_pods)
 
-  # Pick two random pods from different worker nodes
+  # Pick two random pods from different nodes
   pod1=${deployment_pod_array[$((RANDOM % ${#deployment_pod_array[@]}))]}
   node1=$(kubectl get pod -n test $pod1 -o jsonpath='{.spec.nodeName}')
 
@@ -43,83 +59,97 @@ test_pod_to_pod_comms() {
     node2=$(kubectl get pod -n test $pod2 -o jsonpath='{.spec.nodeName}')
   done
 
-  # Get the pods running on the selected worker nodes
-  pod1=$(kubectl get pods -n test -o jsonpath="{.items[?(@.spec.nodeName=='$node1')].metadata.name}" -l app=test)
-  pod2=$(kubectl get pods -n test -o jsonpath="{.items[?(@.spec.nodeName=='$node2')].metadata.name}" -l app=test)
-
-  if [ -z "$pod1" ] || [ -z "$pod2" ]; then
-    echo "No pods found on the selected worker nodes. Skipping across-node test."
-    return
-  fi
-
-  # Get the pod IP addresses and node IP addresses
   pod1_ip=$(kubectl get pod -n test $pod1 -o jsonpath='{.status.podIP}')
   pod2_ip=$(kubectl get pod -n test $pod2 -o jsonpath='{.status.podIP}')
-  node1_ip=$(kubectl get node $node1 -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-  node2_ip=$(kubectl get node $node2 -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
 
-  echo "Testing pod-to-pod communication across worker nodes $node1 ($node1_ip) and $node2 ($node2_ip)"
+  # Test pod-to-pod communication
   kubectl exec -n test $pod1 -- curl -s http://$pod2_ip:80 >/dev/null 2>&1
   if [ $? -eq 0 ]; then
-    echo "Pod-to-pod communication succeeded: $pod1 ($pod1_ip) -> $pod2 ($pod2_ip)"
+    echo "Pod-to-pod communication succeeded: NODE:$node1  POD:$pod1_ip  ->  NODE:$node2  POD:$pod2_ip"
   else
-    echo "Pod-to-pod communication failed: $pod1 ($pod1_ip) -> $pod2 ($pod2_ip)"
+    echo "Pod-to-pod communication failed: NODE:$node1  POD:$pod1_ip  ->  NODE:$node2  POD:$pod2_ip"
   fi
 
   kubectl exec -n test $pod2 -- curl -s http://$pod1_ip:80 >/dev/null 2>&1
   if [ $? -eq 0 ]; then
-    echo "Pod-to-pod communication succeeded: $pod2 ($pod2_ip) -> $pod1 ($pod1_ip)"
+    echo "Pod-to-pod communication succeeded: NODE:$node2  POD:$pod2_ip  ->  NODE:$node1  POD:$pod1_ip"
   else
-    echo "Pod-to-pod communication failed: $pod2 ($pod2_ip) -> $pod1 ($pod1_ip)"
+    echo "Pod-to-pod communication failed: NODE:$node2  POD:$pod2_ip  ->  NODE:$node1  POD:$pod1_ip"
   fi
 }
 
-test_pod_to_pod_comms_across_worker_nodes() {
-  worker_nodes=$(kubectl get nodes -l node-role.kubernetes.io/worker=true -o jsonpath='{.items[*].metadata.name}')
-  worker_node_array=($worker_nodes)
+test_pod_to_service_comms() {
+  service_ip=$(kubectl get svc -n test test-service -o jsonpath='{.spec.clusterIP}')
 
-  for ((i = 1; i <= 10; i++)); do
-    test_pod_to_pod_comms worker_node_array
-  done
-  
+  # Pick a random pod
+  pod=${deployment_pod_array[$((RANDOM % ${#deployment_pod_array[@]}))]}
+  node=$(kubectl get pod -n test $pod -o jsonpath='{.spec.nodeName}')
+
+  # Get the pod IP address
+  pod_ip=$(kubectl get pod -n test $pod -o jsonpath='{.status.podIP}')
+
+  # Test pod-to-service communication
+  kubectl exec -n test $pod -- curl -s http://$service_ip:80 >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "Pod-to-service communication succeeded: NODE:$node  POD:$pod_ip  ->  SERVICE:$service_ip"
+  else
+    echo "Pod-to-service communication failed: NODE:$node  POD:$pod_ip  ->  SERVICE:$service_ip"
+  fi
 }
 
-test_pod_to_pod_comms_across_master_nodes() {
-  master_nodes=$(kubectl get nodes -l node-role.kubernetes.io/master=true -o jsonpath='{.items[*].metadata.name}')
-  master_node_array=($master_nodes)
+# # test with different replica counts
+# for replicas in 10 100 20 50 ; do
+#   kubectl scale -n test deployment/test-deployment --replicas=$replicas
+#   kubectl rollout status -n test deployment/test-deployment --timeout=60s
 
-  for ((i = 1; i <= 5; i++)); do
-    test_pod_to_pod_comms master_node_array
-  done
-  
-}
+#   for ((i = 1; i <= 10; i++)); do
+#     test_pod_to_pod_comms
+#     test_pod_to_service_comms()
+#   done
 
-test_pod_to_pod_comms_across_worker_master_nodes() {
-  worker_nodes=$(kubectl get nodes -l node-role.kubernetes.io/worker=true -o jsonpath='{.items[*].metadata.name}')
-  master_nodes=$(kubectl get nodes -l node-role.kubernetes.io/master=true -o jsonpath='{.items[*].metadata.name}')
-  worker_node_array=($worker_nodes)
-  master_node_array=($master_nodes)
-  for ((i = 1; i <= 10; i++)); do
-    test_pod_to_pod_comms worker_node_array
-  done
-  
-}
+#   echo "Waiting for 10 seconds..."
+#   sleep 10
+# done
 
-# Loop to test across-worker-node communication with different replica counts
-for replicas in 10 20; do
+# Initial replica count
+min_replicas=10
+max_replicas=300
+replicas=50
+
+while [ $min_replicas -lt $max_replicas ]; do
+  # Scale the deployment to the current replica count
   kubectl scale -n test deployment/test-deployment --replicas=$replicas
   kubectl rollout status -n test deployment/test-deployment --timeout=60s
 
-  echo "Testing pod-pod communication across nodes"
-  test_pod_to_pod_comms
-#   test_pod_to_pod_comms_across_worker_nodes
-#   echo "Testing pod-pod communication across master nodes"
-#   test_pod_to_pod_comms_across_master_nodes
+  # Test pod-to-pod and pod-to-service communication
+  for ((i = 1; i <= 10; i++)); do
+    test_pod_to_pod_comms
+    test_pod_to_service_comms
+  done
 
-  echo "Waiting for 10 seconds..."
-  sleep 10
+  echo "Current replica count: $replicas"
+
+  # Ask the user to decide whether to scale up or down
+  read -p "Enter 'u' to scale up, 'd' to scale down, or 'q' to quit: " action
+  case $action in
+    u)
+      # Scale up
+      min_replicas=$replicas
+      replicas=$((min_replicas + (max_replicas - min_replicas) / 2))
+      ;;
+    d)
+      # Scale down
+      max_replicas=$replicas
+      replicas=$((min_replicas + (max_replicas - min_replicas) / 2))
+      ;;
+    q)
+      # Quit
+      break
+      ;;
+    *)
+      echo "Invalid input. Please try again."
+      ;;
+  esac
 done
 
-# Clean up
 kubectl delete namespace test
-
